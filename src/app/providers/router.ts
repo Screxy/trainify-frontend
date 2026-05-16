@@ -45,9 +45,29 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/workouts/ui/WorkoutsPage.vue'),
       },
       {
+        path: 'workouts/new',
+        name: 'start-workout',
+        component: () => import('@/pages/workouts/ui/StartWorkoutPage.vue'),
+      },
+      {
+        path: 'workouts/select-plan',
+        name: 'select-plan',
+        component: () => import('@/pages/workouts/ui/SelectPlanPage.vue'),
+      },
+      {
+        path: 'workouts/setup',
+        name: 'workout-setup',
+        component: () => import('@/pages/workouts/ui/WorkoutSetupPage.vue'),
+      },
+      {
         path: 'workouts/active',
         name: 'active-workout',
         component: () => import('@/pages/workouts/ui/ActiveWorkoutPage.vue'),
+      },
+      {
+        path: 'workouts/finish',
+        name: 'workout-finish',
+        component: () => import('@/pages/workouts/ui/WorkoutFinishPage.vue'),
       },
       {
         path: 'workouts/:id',

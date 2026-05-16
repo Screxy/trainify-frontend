@@ -53,5 +53,14 @@ export const useWorkoutStore = defineStore('workout', () => {
     return data
   }
 
-  return { workouts, currentWorkout, loading, fetchWorkouts, fetchWorkout, createWorkout, addSets, completeWorkout }
+  async function deleteWorkout(id: number) {
+    await workoutApi.delete(id)
+    const idx = workouts.value.findIndex((w) => w.id === id)
+    if (idx !== -1) workouts.value.splice(idx, 1)
+    if (currentWorkout.value?.id === id) {
+      currentWorkout.value = null
+    }
+  }
+
+  return { workouts, currentWorkout, loading, fetchWorkouts, fetchWorkout, createWorkout, addSets, completeWorkout, deleteWorkout }
 })

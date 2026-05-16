@@ -23,7 +23,7 @@ const filtered = computed(() => {
 })
 
 function startNew() {
-  router.push('/workouts/active')
+  router.push('/workouts/new')
 }
 </script>
 

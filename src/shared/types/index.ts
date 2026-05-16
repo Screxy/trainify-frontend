@@ -29,8 +29,8 @@ export interface WorkoutSession {
   title?: string
   notes?: string
   weight_before?: number
-  duration?: number
   completed_at?: string
+  created_at?: string
 }
 
 export interface TrainingSet {
@@ -44,6 +44,7 @@ export interface TrainingSet {
 
 export interface TrainingSetResponse extends TrainingSet {
   id: number
+  exercise_name?: string
 }
 
 export interface WorkoutSessionDetail extends WorkoutSession {

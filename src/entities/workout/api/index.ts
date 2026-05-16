@@ -22,4 +22,7 @@ export const workoutApi = {
   complete(id: number) {
     return api.post<WorkoutSession>(`/workouts/${id}/complete`)
   },
+  delete(id: number) {
+    return api.delete(`/workouts/${id}`)
+  },
 }

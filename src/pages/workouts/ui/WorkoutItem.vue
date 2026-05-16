@@ -14,9 +14,12 @@ function formatDate(date: string) {
   return new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function formatDuration(mins?: number) {
-  if (!mins) return '—'
-  return `${mins} мин`
+function formatDuration(workout: WorkoutSession) {
+  if (workout.completed_at && workout.created_at) {
+    const mins = Math.round((new Date(workout.completed_at).getTime() - new Date(workout.created_at).getTime()) / 60000)
+    if (mins > 0) return `${mins} мин`
+  }
+  return '—'
 }
 </script>
 
@@ -29,7 +32,7 @@ function formatDuration(mins?: number) {
       <span class="font-medium text-text-primary">{{ workout.title || 'Тренировка' }}</span>
       <div class="flex items-center gap-3 text-xs text-text-secondary">
         <span>{{ formatDate(workout.date) }}</span>
-        <span>{{ formatDuration(workout.duration) }}</span>
+        <span>{{ formatDuration(workout) }}</span>
       </div>
     </div>
     <div class="flex items-center gap-2">

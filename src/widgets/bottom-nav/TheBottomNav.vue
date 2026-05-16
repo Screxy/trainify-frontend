@@ -38,7 +38,7 @@ function isActive(path: string) {
     </RouterLink>
 
     <RouterLink
-      to="/workouts/active"
+      to="/workouts?start=1"
       class="flex h-12 w-12 items-center justify-center rounded-3xl bg-accent text-bg shadow-lg"
     >
       <Plus :size="24" />

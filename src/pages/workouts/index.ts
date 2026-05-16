@@ -1,3 +1,7 @@
 export { default as WorkoutsPage } from './ui/WorkoutsPage.vue'
 export { default as WorkoutDetailPage } from './ui/WorkoutDetailPage.vue'
 export { default as ActiveWorkoutPage } from './ui/ActiveWorkoutPage.vue'
+export { default as WorkoutSetupPage } from './ui/WorkoutSetupPage.vue'
+export { default as StartWorkoutPage } from './ui/StartWorkoutPage.vue'
+export { default as SelectPlanPage } from './ui/SelectPlanPage.vue'
+export { default as WorkoutFinishPage } from './ui/WorkoutFinishPage.vue'

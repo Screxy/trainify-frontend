@@ -27,11 +27,28 @@ const exerciseGroups = computed(() => {
   const map = new Map<number, { name: string; sets: typeof workout.value.sets }>()
   for (const s of workout.value.sets) {
     if (!map.has(s.exercise_id)) {
-      map.set(s.exercise_id, { name: `Упражнение #${s.exercise_id}`, sets: [] })
+      map.set(s.exercise_id, { name: s.exercise_name || `Упражнение #${s.exercise_id}`, sets: [] })
     }
     map.get(s.exercise_id)!.sets.push(s)
   }
   return Array.from(map.values())
+})
+
+const duration = computed(() => {
+  const w = workout.value
+  if (w?.completed_at && w?.created_at) {
+    const start = new Date(w.created_at).getTime()
+    const end = new Date(w.completed_at).getTime()
+    const mins = Math.round((end - start) / 60000)
+    if (mins > 0) return `${mins} мин`
+  }
+  return '—'
+})
+
+const totalVolume = computed(() => {
+  const sets = workout.value?.sets ?? []
+  const total = sets.reduce((sum, s) => sum + (s.weight ?? 0) * s.reps, 0)
+  return total > 0 ? `${total.toLocaleString('ru-RU')} кг` : '—'
 })
 
 function formatDate(date?: string) {
@@ -40,7 +57,13 @@ function formatDate(date?: string) {
 }
 
 async function handleDelete() {
-  toast.info('Удаление тренировок пока недоступно')
+  try {
+    await workoutStore.deleteWorkout(id)
+    toast.success('Тренировка удалена')
+    router.push('/workouts')
+  } catch {
+    toast.error('Не удалось удалить тренировку')
+  }
 }
 </script>
 
@@ -73,7 +96,7 @@ async function handleDelete() {
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
       <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
         <Clock :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ workout?.duration ?? '—' }} мин</span>
+        <span class="text-lg font-bold text-text-primary">{{ duration }}</span>
         <span class="text-xs text-text-secondary">Длительность</span>
       </div>
       <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
@@ -83,14 +106,20 @@ async function handleDelete() {
       </div>
       <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
         <Flame :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ workout?.sets?.length ?? 0 }}</span>
-        <span class="text-xs text-text-secondary">Подходов</span>
+        <span class="text-lg font-bold text-text-primary">{{ totalVolume }}</span>
+        <span class="text-xs text-text-secondary">Объём</span>
       </div>
       <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
         <Weight :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ workout?.weight_before ?? '—' }} кг</span>
+        <span class="text-lg font-bold text-text-primary">{{ workout?.weight_before ? `${workout.weight_before} кг` : '—' }}</span>
         <span class="text-xs text-text-secondary">Вес до</span>
       </div>
+    </div>
+
+    <!-- Notes -->
+    <div v-if="workout?.notes" class="rounded-lg border border-border bg-bg-card px-5 py-4">
+      <span class="text-xs font-medium text-text-secondary">Заметки</span>
+      <p class="mt-1 text-sm text-text-primary">{{ workout.notes }}</p>
     </div>
 
     <!-- Exercise list -->

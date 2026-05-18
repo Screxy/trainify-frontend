@@ -1,45 +1,54 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { BarChart3, TrendingUp } from 'lucide-vue-next'
 import { useAnalyticsStore } from '@/features/analytics'
 import { useExerciseStore } from '@/entities/exercise'
 import { AppSelect } from '@/shared/ui'
 import PeriodTabs from './PeriodTabs.vue'
 import PersonalRecordsTable from './PersonalRecordsTable.vue'
+import MaxWeightLineChart from './charts/MaxWeightLineChart.vue'
+import ProgressBarChart from '@/pages/dashboard/ui/charts/ProgressBarChart.vue'
 
 const analyticsStore = useAnalyticsStore()
 const exerciseStore = useExerciseStore()
 
-const selectedExercise = ref('')
+const selectedExerciseId = ref<string>('')
 const period = ref<'week' | 'month' | 'year'>('month')
 
-const exerciseOptions = ref<{ value: string; label: string }[]>([])
+const exerciseOptions = computed(() =>
+  exerciseStore.exercises.map((e) => ({ value: String(e.id), label: e.name })),
+)
 
 onMounted(async () => {
-  await exerciseStore.fetchExercises()
-  exerciseOptions.value = exerciseStore.exercises.map((e) => ({
-    value: String(e.id),
-    label: e.name,
-  }))
+  if (exerciseStore.exercises.length === 0) {
+    await exerciseStore.fetchExercises()
+  }
+  if (exerciseStore.exercises.length > 0 && !selectedExerciseId.value) {
+    selectedExerciseId.value = String(exerciseStore.exercises[0].id)
+  }
   analyticsStore.fetchRecords()
 })
 
-watch([selectedExercise, period], ([exId, p]) => {
-  if (exId) {
-    analyticsStore.fetchProgress(Number(exId), p)
-  }
-})
+watch(
+  [selectedExerciseId, period],
+  ([id, p]) => {
+    if (id) analyticsStore.fetchProgress(Number(id), p)
+  },
+  { immediate: true },
+)
+
+const hasData = computed(() => analyticsStore.progressData.length > 0)
 </script>
 
 <template>
   <div class="flex flex-col gap-6 p-4 md:p-8">
-    <h1 class="text-xl font-bold text-text-primary md:text-[32px]">Аналитика</h1>
+    <h1 class="text-2xl font-bold text-text-primary md:text-[32px]">Аналитика</h1>
 
     <!-- Filters -->
-    <div class="flex flex-col gap-3 md:flex-row md:items-end">
-      <div class="w-full md:w-72">
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:gap-4">
+      <div class="w-full md:w-[280px]">
         <AppSelect
-          v-model="selectedExercise"
+          v-model="selectedExerciseId"
           label="Упражнение"
           :options="exerciseOptions"
           placeholder="Выберите упражнение"
@@ -50,48 +59,50 @@ watch([selectedExercise, period], ([exId, p]) => {
 
     <!-- Charts -->
     <div class="grid gap-4 md:grid-cols-2">
-      <div class="flex flex-col gap-3 rounded-lg border border-border bg-bg-card p-5">
+      <!-- Max weight (line) -->
+      <div class="flex flex-col gap-4 rounded-lg bg-bg-card p-6">
         <div class="flex items-center gap-2">
           <TrendingUp :size="16" class="text-accent" />
-          <span class="text-sm font-semibold text-text-primary">Максимальный вес</span>
+          <h3 class="text-base font-semibold text-text-primary">Динамика рабочего веса</h3>
         </div>
-        <div class="flex h-[200px] items-center justify-center text-text-secondary">
-          <div v-if="!selectedExercise" class="text-center text-sm">Выберите упражнение</div>
-          <div v-else-if="analyticsStore.progressData.length === 0" class="text-center text-sm">Нет данных</div>
-          <div v-else class="flex h-full w-full items-end gap-1 px-2 pb-2">
-            <div
-              v-for="(point, i) in analyticsStore.progressData"
-              :key="i"
-              class="flex-1 rounded-t bg-accent/60"
-              :style="{ height: `${(point.max_weight / Math.max(...analyticsStore.progressData.map(p => p.max_weight))) * 100}%` }"
-              :title="`${point.date}: ${point.max_weight} кг`"
-            />
-          </div>
+        <div v-if="!selectedExerciseId" class="flex h-[200px] items-center justify-center text-sm text-text-secondary">
+          Выберите упражнение
         </div>
+        <div
+          v-else-if="analyticsStore.loading && !hasData"
+          class="flex h-[200px] items-center justify-center text-sm text-text-secondary"
+        >
+          Загрузка…
+        </div>
+        <div v-else-if="!hasData" class="flex h-[200px] items-center justify-center text-sm text-text-secondary">
+          Нет данных
+        </div>
+        <MaxWeightLineChart v-else :points="analyticsStore.progressData" />
       </div>
 
-      <div class="flex flex-col gap-3 rounded-lg border border-border bg-bg-card p-5">
+      <!-- Volume (bars) -->
+      <div class="flex flex-col gap-4 rounded-lg bg-bg-card p-6">
         <div class="flex items-center gap-2">
-          <BarChart3 :size="16" class="text-info" />
-          <span class="text-sm font-semibold text-text-primary">Объём</span>
+          <BarChart3 :size="16" class="text-accent-secondary" />
+          <h3 class="text-base font-semibold text-text-primary">Объём нагрузки</h3>
         </div>
-        <div class="flex h-[200px] items-center justify-center text-text-secondary">
-          <div v-if="!selectedExercise" class="text-center text-sm">Выберите упражнение</div>
-          <div v-else-if="analyticsStore.progressData.length === 0" class="text-center text-sm">Нет данных</div>
-          <div v-else class="flex h-full w-full items-end gap-1 px-2 pb-2">
-            <div
-              v-for="(point, i) in analyticsStore.progressData"
-              :key="i"
-              class="flex-1 rounded-t bg-info/60"
-              :style="{ height: `${(point.volume / Math.max(...analyticsStore.progressData.map(p => p.volume))) * 100}%` }"
-              :title="`${point.date}: ${point.volume} кг`"
-            />
-          </div>
+        <div v-if="!selectedExerciseId" class="flex h-[200px] items-center justify-center text-sm text-text-secondary">
+          Выберите упражнение
         </div>
+        <div
+          v-else-if="analyticsStore.loading && !hasData"
+          class="flex h-[200px] items-center justify-center text-sm text-text-secondary"
+        >
+          Загрузка…
+        </div>
+        <div v-else-if="!hasData" class="flex h-[200px] items-center justify-center text-sm text-text-secondary">
+          Нет данных
+        </div>
+        <ProgressBarChart v-else :points="analyticsStore.progressData" metric="volume" />
       </div>
     </div>
 
-    <!-- Records -->
+    <!-- Personal records -->
     <PersonalRecordsTable :records="analyticsStore.records" />
   </div>
 </template>

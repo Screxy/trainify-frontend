@@ -55,9 +55,11 @@ function toggleExercise(id: number, name: string) {
     selected.value.splice(idx, 1)
     selected.value.forEach((e, i) => (e.exercise_order = i + 1))
   } else {
+    const exercise = exerciseStore.exercises.find((e) => e.id === id)
     selected.value.push({
       exercise_id: id,
       exercise_name: name,
+      exercise_type: exercise?.type,
       exercise_order: selected.value.length + 1,
       completedSets: [],
     })

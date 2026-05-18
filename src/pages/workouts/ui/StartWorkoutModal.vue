@@ -57,6 +57,7 @@ async function selectPlan(planId: number) {
       planStore.currentPlan,
       weightBefore.value ? Number(weightBefore.value) : undefined,
       notes.value || undefined,
+      title.value || undefined,
     )
     close()
     router.push('/workouts/active')

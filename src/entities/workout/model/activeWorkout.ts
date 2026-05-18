@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { workoutApi } from '../api'
-import type { WorkoutPlanDetail } from '@/shared/types'
+import { useExerciseStore } from '@/entities/exercise'
+import type { ExerciseType, WorkoutPlanDetail } from '@/shared/types'
 
 export interface ActiveExerciseSet {
   set_order: number
-  weight: number
+  weight?: number
   reps: number
   is_warmup: boolean
 }
@@ -13,9 +14,11 @@ export interface ActiveExerciseSet {
 export interface ActiveExercise {
   exercise_id: number
   exercise_name: string
+  exercise_type?: ExerciseType
   target_sets?: number
   target_reps?: number
   target_weight?: number
+  is_warmup?: boolean
   exercise_order: number
   completedSets: ActiveExerciseSet[]
 }
@@ -88,22 +91,34 @@ export const useActiveWorkoutStore = defineStore('activeWorkout', () => {
     { deep: true },
   )
 
-  async function startFromPlan(plan: WorkoutPlanDetail, weight?: number, notes?: string) {
+  async function startFromPlan(
+    plan: WorkoutPlanDetail,
+    weight?: number,
+    notes?: string,
+    title?: string,
+  ) {
     const { data } = await workoutApi.create({
       date: new Date().toISOString().slice(0, 10),
-      title: plan.name,
+      title: title?.trim() || plan.name,
       notes: notes || undefined,
       weight_before: weight || undefined,
     })
+    const exerciseStore = useExerciseStore()
+    if (exerciseStore.exercises.length === 0) {
+      await exerciseStore.fetchExercises()
+    }
+    const typeById = new Map(exerciseStore.exercises.map((e) => [e.id, e.type]))
     weightBefore.value = weight ?? null
     sessionId.value = data.id
     mode.value = 'plan'
     exercises.value = plan.exercises.map((e) => ({
       exercise_id: e.exercise_id,
       exercise_name: e.exercise_name ?? `Упражнение #${e.exercise_id}`,
+      exercise_type: typeById.get(e.exercise_id),
       target_sets: e.target_sets,
       target_reps: e.target_reps,
       target_weight: e.target_weight,
+      is_warmup: e.is_warmup,
       exercise_order: e.exercise_order,
       completedSets: [],
     }))
@@ -132,7 +147,7 @@ export const useActiveWorkoutStore = defineStore('activeWorkout', () => {
     isActive.value = true
   }
 
-  async function logSet(weight: number, reps: number, isWarmup = false) {
+  async function logSet(weight: number | undefined, reps: number, isWarmup = false) {
     if (!sessionId.value) return
     const ex = exercises.value[currentExerciseIndex.value]
     if (!ex) return

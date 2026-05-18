@@ -29,7 +29,8 @@ async function selectPlan(planId: number) {
 
     const weight = route.query.weight ? Number(route.query.weight) : undefined
     const notes = route.query.notes ? String(route.query.notes) : undefined
-    await activeWorkoutStore.startFromPlan(planStore.currentPlan, weight, notes)
+    const title = route.query.title ? String(route.query.title) : undefined
+    await activeWorkoutStore.startFromPlan(planStore.currentPlan, weight, notes, title)
     router.push('/workouts/active')
   } catch {
     toast.error('Не удалось начать тренировку')

@@ -1,5 +1,5 @@
 import { api } from '@/shared/api'
-import type { ProgressPoint, PersonalRecord } from '@/shared/types'
+import type { DashboardResponse, PersonalRecord, ProgressPoint } from '@/shared/types'
 
 export const analyticsApi = {
   getProgress(exercise_id: number, period: 'week' | 'month' | 'year') {
@@ -10,4 +10,9 @@ export const analyticsApi = {
   getRecords() {
     return api.get<PersonalRecord[]>('/analytics/records')
   },
+  getDashboard() {
+    return api.get<DashboardResponse>('/analytics/dashboard')
+  },
 }
+
+export { aiInsightsApi } from './insights'

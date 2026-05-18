@@ -6,6 +6,7 @@ import { RouterLink } from 'vue-router'
 
 const authStore = useAuthStore()
 
+const name = ref('')
 const email = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
@@ -27,6 +28,7 @@ async function handleSubmit() {
   await authStore.register({
     email: email.value,
     password: password.value,
+    name: name.value.trim() || undefined,
   })
 }
 </script>
@@ -36,6 +38,11 @@ async function handleSubmit() {
     <form class="flex flex-col gap-6" @submit.prevent="handleSubmit">
       <!-- Form fields -->
       <div class="flex flex-col gap-4">
+        <AppInput
+          v-model="name"
+          label="Имя"
+          placeholder="Алексей"
+        />
         <AppInput
           v-model="email"
           label="Email"

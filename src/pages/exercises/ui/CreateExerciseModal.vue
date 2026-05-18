@@ -19,7 +19,7 @@ const toast = useToast()
 
 const name = ref('')
 const type = ref<ExerciseType | ''>('')
-const muscleGroups = ref('')
+const selectedMuscleGroups = ref<string[]>([])
 const saving = ref(false)
 
 const typeOptions = [
@@ -28,6 +28,22 @@ const typeOptions = [
   { value: 'machine', label: 'Тренажёр' },
   { value: 'cardio', label: 'Кардио' },
 ]
+
+const muscleGroupOptions: { value: string; label: string }[] = [
+  { value: 'chest', label: 'Грудь' },
+  { value: 'back', label: 'Спина' },
+  { value: 'legs', label: 'Ноги' },
+  { value: 'shoulders', label: 'Плечи' },
+  { value: 'arms', label: 'Руки' },
+  { value: 'core', label: 'Пресс' },
+  { value: 'glutes', label: 'Ягодицы' },
+]
+
+function toggleMuscleGroup(value: string) {
+  const idx = selectedMuscleGroups.value.indexOf(value)
+  if (idx === -1) selectedMuscleGroups.value.push(value)
+  else selectedMuscleGroups.value.splice(idx, 1)
+}
 
 async function save() {
   if (!name.value || !type.value) {
@@ -39,12 +55,12 @@ async function save() {
     await exerciseStore.createExercise({
       name: name.value,
       type: type.value as ExerciseType,
-      muscle_groups: muscleGroups.value ? muscleGroups.value.split(',').map((s) => s.trim()) : undefined,
+      muscle_groups: selectedMuscleGroups.value.length ? [...selectedMuscleGroups.value] : undefined,
     })
     toast.success('Упражнение добавлено')
     name.value = ''
     type.value = ''
-    muscleGroups.value = ''
+    selectedMuscleGroups.value = []
     emit('update:modelValue', false)
   } catch {
     toast.error('Не удалось создать упражнение')
@@ -59,7 +75,25 @@ async function save() {
     <form class="flex flex-col gap-4" @submit.prevent="save">
       <AppInput v-model="name" label="Название" placeholder="Жим лёжа" />
       <AppSelect v-model="type" label="Тип" :options="typeOptions" />
-      <AppInput v-model="muscleGroups" label="Группы мышц" placeholder="грудь, трицепс" hint="Через запятую" />
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[13px] font-medium text-text-secondary">Группы мышц</label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="opt in muscleGroupOptions"
+            :key="opt.value"
+            type="button"
+            class="rounded-full border px-3 py-1 text-xs transition-colors"
+            :class="
+              selectedMuscleGroups.includes(opt.value)
+                ? 'border-accent bg-accent/[0.12] text-accent'
+                : 'border-border bg-bg-input text-text-secondary hover:border-accent/40 hover:text-text-primary'
+            "
+            @click="toggleMuscleGroup(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+      </div>
       <AppButton type="submit" class="w-full" :loading="saving">Добавить</AppButton>
     </form>
   </AppModal>

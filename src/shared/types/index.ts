@@ -4,6 +4,7 @@ export interface User {
   email: string
   role: 'user' | 'admin'
   name?: string
+  created_at?: string
 }
 
 // Exercise
@@ -76,6 +77,80 @@ export interface PersonalRecord {
   max_reps: number
 }
 
+// Dashboard
+export type MuscleGroupKey =
+  | 'chest'
+  | 'back'
+  | 'legs'
+  | 'shoulders'
+  | 'arms'
+  | 'core'
+  | 'glutes'
+
+export interface MuscleBalance {
+  group: MuscleGroupKey
+  percent: number
+}
+
+export interface MainLift {
+  exercise_id: number
+  exercise_name: string
+  delta_kg: number
+}
+
+export interface RecentWorkoutSummary {
+  id: number
+  date: string
+  title?: string
+  duration_min: number
+  tonnage: number
+  main_muscle_group?: MuscleGroupKey
+}
+
+export interface DashboardResponse {
+  workouts_this_month: number
+  streak_days: number
+  main_lift?: MainLift
+  prs_this_month: number
+  muscle_balance: MuscleBalance[]
+  recent_workouts: RecentWorkoutSummary[]
+}
+
+// AI Insights
+export type AIGoal = 'strength' | 'hypertrophy' | 'endurance' | 'weight_loss' | 'general'
+export type AIInsightStatus = 'pending' | 'running' | 'completed' | 'failed'
+export type AIInsightSeverity = 'low' | 'medium' | 'high'
+
+export interface AIInsightRecommendation {
+  area: string
+  advice: string
+  severity: AIInsightSeverity
+}
+
+export interface AIInsightResult {
+  summary: string
+  recommendations: AIInsightRecommendation[]
+}
+
+export interface AIInsightJob {
+  id: string
+  status: AIInsightStatus
+  created_at: string
+  finished_at?: string
+  result?: AIInsightResult
+  error?: string
+}
+
+export interface AIInsightLatest {
+  job?: AIInsightJob
+  next_available_at: string
+}
+
+export interface CreateAIInsightRequest {
+  goal?: AIGoal
+  notes?: string
+}
+
 // Plans
 export interface WorkoutPlan {
   id: number
@@ -90,6 +165,7 @@ export interface PlanExercise {
   target_sets?: number
   target_reps?: number
   target_weight?: number
+  is_warmup?: boolean
   exercise_order: number
 }
 

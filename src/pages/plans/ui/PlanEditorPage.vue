@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Search, GripVertical, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, GripVertical, Search, Trash2 } from 'lucide-vue-next'
+import draggable from 'vuedraggable'
 import { usePlanStore } from '@/entities/plan'
 import { useExerciseStore } from '@/entities/exercise'
 import { AppButton } from '@/shared/ui'
@@ -58,15 +59,11 @@ function addExercise(id: number, exerciseName: string) {
 
 function removeExercise(idx: number) {
   exercises.value.splice(idx, 1)
-  exercises.value.forEach((e, i) => (e.exercise_order = i + 1))
+  reorderAll()
 }
 
-function formatSummary(ex: PlanExercise) {
-  const parts: string[] = []
-  if (ex.target_sets) parts.push(`${ex.target_sets}`)
-  if (ex.target_reps) parts.push(`×${ex.target_reps}`)
-  if (ex.target_weight) parts.push(`@ ${ex.target_weight} кг`)
-  return parts.join('') || '—'
+function reorderAll() {
+  exercises.value.forEach((e, i) => (e.exercise_order = i + 1))
 }
 
 async function save() {
@@ -174,65 +171,76 @@ async function save() {
         Добавьте упражнения через поиск выше
       </div>
 
-      <!-- Desktop exercise cards -->
-      <div
-        v-for="(ex, i) in exercises"
-        :key="i"
-        class="hidden items-center gap-4 rounded-lg bg-bg-card p-4 md:flex"
+      <draggable
+        v-else
+        v-model="exercises"
+        item-key="exercise_id"
+        handle=".drag-handle"
+        animation="200"
+        ghost-class="drag-ghost"
+        chosen-class="drag-chosen"
+        :force-fallback="true"
+        :fallback-tolerance="3"
+        class="flex flex-col gap-3"
+        @end="reorderAll"
       >
-        <GripVertical :size="20" class="shrink-0 text-text-secondary" />
-        <div class="flex flex-1 flex-col gap-2">
-          <span class="text-base font-semibold text-text-primary">{{ ex.exercise_name || `Упражнение #${ex.exercise_id}` }}</span>
-          <div class="flex gap-4">
-            <div class="flex flex-col gap-1">
-              <span class="text-xs text-text-secondary">Подходы</span>
-              <input
-                :value="ex.target_sets ?? ''"
-                type="number"
-                class="h-9 w-20 rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                @input="ex.target_sets = Number(($event.target as HTMLInputElement).value) || undefined"
-              />
+        <template #item="{ element: ex, index: i }">
+          <div class="flex items-start gap-3 rounded-lg bg-bg-card p-3 md:items-center md:p-4">
+            <button
+              type="button"
+              class="drag-handle flex shrink-0 cursor-grab touch-none items-center self-stretch text-text-secondary hover:text-text-primary active:cursor-grabbing"
+              aria-label="Перетащить"
+            >
+              <GripVertical :size="20" />
+            </button>
+            <div class="flex flex-1 flex-col gap-2 min-w-0">
+              <span class="truncate text-sm font-semibold text-text-primary md:text-base">
+                {{ ex.exercise_name || `Упражнение #${ex.exercise_id}` }}
+              </span>
+              <div class="flex gap-2 md:gap-4">
+                <div class="flex flex-1 flex-col gap-1 md:flex-none">
+                  <span class="text-xs text-text-secondary">Подходы</span>
+                  <input
+                    :value="ex.target_sets ?? ''"
+                    type="number"
+                    inputmode="numeric"
+                    class="h-9 w-full rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent md:w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    @input="ex.target_sets = Number(($event.target as HTMLInputElement).value) || undefined"
+                  />
+                </div>
+                <div class="flex flex-1 flex-col gap-1 md:flex-none">
+                  <span class="text-xs text-text-secondary">Повторы</span>
+                  <input
+                    :value="ex.target_reps ?? ''"
+                    type="number"
+                    inputmode="numeric"
+                    class="h-9 w-full rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent md:w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    @input="ex.target_reps = Number(($event.target as HTMLInputElement).value) || undefined"
+                  />
+                </div>
+                <div class="flex flex-1 flex-col gap-1 md:flex-none">
+                  <span class="text-xs text-text-secondary">Вес (кг)</span>
+                  <input
+                    :value="ex.target_weight ?? ''"
+                    type="number"
+                    inputmode="decimal"
+                    class="h-9 w-full rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent md:w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    @input="ex.target_weight = Number(($event.target as HTMLInputElement).value) || undefined"
+                  />
+                </div>
+              </div>
             </div>
-            <div class="flex flex-col gap-1">
-              <span class="text-xs text-text-secondary">Повторы</span>
-              <input
-                :value="ex.target_reps ?? ''"
-                type="number"
-                class="h-9 w-20 rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                @input="ex.target_reps = Number(($event.target as HTMLInputElement).value) || undefined"
-              />
-            </div>
-            <div class="flex flex-col gap-1">
-              <span class="text-xs text-text-secondary">Вес (кг)</span>
-              <input
-                :value="ex.target_weight ?? ''"
-                type="number"
-                class="h-9 w-20 rounded border border-border bg-bg-input text-center text-sm text-text-primary outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                @input="ex.target_weight = Number(($event.target as HTMLInputElement).value) || undefined"
-              />
-            </div>
+            <button
+              type="button"
+              class="shrink-0 self-start p-1 text-error hover:text-error/80 md:self-center"
+              aria-label="Удалить упражнение"
+              @click="removeExercise(i)"
+            >
+              <Trash2 :size="18" />
+            </button>
           </div>
-        </div>
-        <button class="shrink-0 text-error hover:text-error/80" @click="removeExercise(i)">
-          <Trash2 :size="20" />
-        </button>
-      </div>
-
-      <!-- Mobile exercise cards -->
-      <div
-        v-for="(ex, i) in exercises"
-        :key="'m' + i"
-        class="flex items-center gap-2.5 rounded-lg bg-bg-card p-3 md:hidden"
-      >
-        <GripVertical :size="18" class="shrink-0 text-text-secondary" />
-        <div class="flex flex-1 flex-col gap-1.5">
-          <span class="text-sm font-semibold text-text-primary">{{ ex.exercise_name || `Упражнение #${ex.exercise_id}` }}</span>
-          <span class="text-xs text-text-secondary">{{ formatSummary(ex) }}</span>
-        </div>
-        <button class="shrink-0 text-error hover:text-error/80" @click="removeExercise(i)">
-          <Trash2 :size="18" />
-        </button>
-      </div>
+        </template>
+      </draggable>
     </div>
 
     <!-- Mobile bottom buttons -->
@@ -249,3 +257,12 @@ async function save() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.drag-ghost {
+  opacity: 0.4;
+}
+.drag-chosen {
+  box-shadow: 0 0 0 2px var(--color-accent);
+}
+</style>

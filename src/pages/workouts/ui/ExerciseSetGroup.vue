@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { TrainingSetResponse } from '@/shared/types'
-import { AppBadge } from '@/shared/ui'
 
 interface Props {
   exerciseName: string
@@ -28,7 +27,12 @@ defineProps<Props>()
           <td class="px-5 py-2 text-text-primary">{{ s.weight ?? '—' }} кг</td>
           <td class="px-5 py-2 text-text-primary">{{ s.reps }}</td>
           <td class="px-5 py-2">
-            <AppBadge v-if="s.is_warmup" variant="info">Разминка</AppBadge>
+            <span
+              v-if="s.is_warmup"
+              class="rounded bg-warning/20 px-1.5 py-0.5 text-[11px] font-medium text-warning"
+            >
+              Разм.
+            </span>
           </td>
         </tr>
       </tbody>

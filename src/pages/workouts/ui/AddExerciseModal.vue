@@ -33,9 +33,11 @@ const filtered = computed(() => {
 })
 
 function select(id: number, name: string) {
+  const exercise = exerciseStore.exercises.find((e) => e.id === id)
   activeWorkoutStore.addExercise({
     exercise_id: id,
     exercise_name: name,
+    exercise_type: exercise?.type,
     exercise_order: activeWorkoutStore.exercises.length + 1,
     completedSets: [],
   })

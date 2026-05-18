@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { X, Pause, Play, Timer, Target, CircleCheck, Plus, Minus } from 'lucide-vue-next'
+import { X, Pause, Play, Timer, Target, CircleCheck, Circle, ArrowRight } from 'lucide-vue-next'
 import { useActiveWorkoutStore } from '@/entities/workout'
-import { AppButton, AppModal, ConfirmDialog } from '@/shared/ui'
+import { AppButton, AppBadge, AppModal, ConfirmDialog } from '@/shared/ui'
 import { useToast } from '@/shared/lib/useToast'
 import AddExerciseModal from './AddExerciseModal.vue'
 
@@ -29,7 +29,11 @@ function startTimer() {
   }, 1000)
 }
 onMounted(startTimer)
-onUnmounted(() => clearInterval(timerInterval))
+onUnmounted(() => {
+  clearInterval(timerInterval)
+  clearInterval(restInterval)
+  document.body.style.overflow = ''
+})
 
 function togglePause() {
   paused.value = !paused.value
@@ -59,14 +63,69 @@ const targetInfo = computed(() => {
 })
 const completedSets = computed(() => currentExercise.value?.completedSets ?? [])
 const currentSetNumber = computed(() => completedSets.value.length + 1)
+const isBodyweight = computed(() => currentExercise.value?.exercise_type === 'bodyweight')
 const progress = computed(() =>
   store.exercises.length > 0 ? (store.currentExerciseIndex + 1) / store.exercises.length : 0,
 )
 const isLastExercise = computed(() => store.currentExerciseIndex === store.exercises.length - 1)
 
+// Planned sets list (plan mode only)
+const hasPlannedSets = computed(
+  () => store.mode === 'plan' && !!currentExercise.value?.target_sets,
+)
+const allSetsComplete = computed(() => {
+  const ex = currentExercise.value
+  return !!(hasPlannedSets.value && ex?.target_sets && ex.completedSets.length >= ex.target_sets)
+})
+const plannedSetsRows = computed(() => {
+  const ex = currentExercise.value
+  if (!ex?.target_sets) return []
+  const total = Math.max(ex.target_sets, ex.completedSets.length)
+  const rows: Array<
+    | { state: 'completed'; num: number; weight?: number; reps: number; isWarmup: boolean }
+    | { state: 'current'; num: number }
+    | { state: 'pending'; num: number; targetReps?: number; targetWeight?: number }
+  > = []
+  for (let i = 1; i <= total; i++) {
+    const completed = ex.completedSets[i - 1]
+    if (completed) {
+      rows.push({
+        state: 'completed',
+        num: i,
+        weight: completed.weight,
+        reps: completed.reps,
+        isWarmup: completed.is_warmup,
+      })
+    } else if (i === ex.completedSets.length + 1) {
+      rows.push({ state: 'current', num: i })
+    } else {
+      rows.push({
+        state: 'pending',
+        num: i,
+        targetReps: ex.target_reps,
+        targetWeight: ex.target_weight,
+      })
+    }
+  }
+  return rows
+})
+const setsListLabel = computed(() =>
+  allSetsComplete.value ? 'Выполненные подходы' : 'Подходы по плану',
+)
+const inputLabel = computed(() => {
+  if (allSetsComplete.value) {
+    return `Доп. подход ${currentSetNumber.value}`
+  }
+  if (hasPlannedSets.value && currentExercise.value?.target_sets) {
+    return `Подход ${currentSetNumber.value} из ${currentExercise.value.target_sets}`
+  }
+  return `Подход ${currentSetNumber.value}`
+})
+
 // Set input — pre-fill from last set or target
 const weight = ref(0)
 const reps = ref(0)
+const isWarmup = ref(false)
 
 watch(
   () => store.currentExerciseIndex,
@@ -76,6 +135,8 @@ watch(
     const lastSet = ex.completedSets[ex.completedSets.length - 1]
     weight.value = lastSet?.weight ?? ex.target_weight ?? 0
     reps.value = lastSet?.reps ?? ex.target_reps ?? 0
+    // Default warmup state: from plan if first set, otherwise from last entered set
+    isWarmup.value = lastSet ? lastSet.is_warmup : Boolean(ex.is_warmup)
   },
   { immediate: true },
 )
@@ -92,7 +153,12 @@ const resting = ref(false)
 const restTime = ref(90)
 let restInterval: ReturnType<typeof setInterval> | undefined
 
+watch(resting, (active) => {
+  document.body.style.overflow = active ? 'hidden' : ''
+})
+
 function startRest() {
+  clearInterval(restInterval)
   resting.value = true
   restTime.value = 90
   restInterval = setInterval(() => {
@@ -104,15 +170,21 @@ function startRest() {
 function skipRest() {
   resting.value = false
   clearInterval(restInterval)
+  restInterval = undefined
 }
 
 // Logging
 const logging = ref(false)
 async function logSet() {
-  if (!weight.value || !reps.value) return
+  if (!reps.value) return
+  if (!isBodyweight.value && !weight.value) return
   logging.value = true
   try {
-    await store.logSet(weight.value, reps.value, false)
+    await store.logSet(
+      isBodyweight.value ? undefined : weight.value,
+      reps.value,
+      isWarmup.value,
+    )
     startRest()
   } catch {
     toast.error('Не удалось сохранить подход')
@@ -194,8 +266,64 @@ function formatRest(sec: number) {
         </div>
       </div>
 
-      <!-- Completed sets -->
-      <div v-if="completedSets.length > 0" class="flex flex-col gap-2">
+      <!-- Plan complete badge -->
+      <div v-if="allSetsComplete" class="flex">
+        <AppBadge variant="success" class="!text-white">✓ План выполнен</AppBadge>
+      </div>
+
+      <!-- Planned sets list (plan mode) -->
+      <div v-if="hasPlannedSets" class="flex flex-col gap-2">
+        <div class="flex items-center">
+          <span class="text-sm font-semibold text-text-primary">{{ setsListLabel }}</span>
+          <span class="ml-auto text-sm font-semibold text-accent">
+            {{ completedSets.length }} из {{ currentExercise?.target_sets }}
+          </span>
+        </div>
+        <template v-for="row in plannedSetsRows" :key="row.num">
+          <div
+            v-if="row.state === 'completed'"
+            class="flex h-11 items-center gap-3 rounded-lg bg-bg-card px-4"
+          >
+            <span class="text-sm font-semibold text-text-secondary">{{ row.num }}</span>
+            <span
+              v-if="row.isWarmup"
+              class="rounded bg-warning/20 px-1.5 py-0.5 text-[11px] font-medium text-warning"
+            >
+              Разм.
+            </span>
+            <span class="flex-1 text-sm text-text-primary">
+              <template v-if="isBodyweight">× {{ row.reps }}</template>
+              <template v-else>{{ row.weight }} кг × {{ row.reps }}</template>
+            </span>
+            <CircleCheck :size="20" class="text-accent" />
+          </div>
+          <div
+            v-else-if="row.state === 'current'"
+            class="flex h-11 items-center gap-3 rounded-lg border border-accent bg-bg-card px-4"
+          >
+            <span class="text-sm font-semibold text-accent">{{ row.num }}</span>
+            <span class="flex-1 text-sm font-medium text-accent">Текущий подход</span>
+            <ArrowRight :size="18" class="text-accent" />
+          </div>
+          <div
+            v-else
+            class="flex h-11 items-center gap-3 rounded-lg bg-bg-input px-4 opacity-50"
+          >
+            <span class="text-sm font-semibold text-text-secondary">{{ row.num }}</span>
+            <span class="flex-1 text-sm text-text-secondary">
+              <template v-if="isBodyweight && row.targetReps">× {{ row.targetReps }}</template>
+              <template v-else-if="row.targetReps && row.targetWeight">
+                {{ row.targetReps }} × {{ row.targetWeight }} кг
+              </template>
+              <template v-else-if="row.targetReps">{{ row.targetReps }} повт.</template>
+            </span>
+            <Circle :size="18" class="text-text-secondary" />
+          </div>
+        </template>
+      </div>
+
+      <!-- Completed sets (free mode) -->
+      <div v-else-if="completedSets.length > 0" class="flex flex-col gap-2">
         <span class="text-sm font-semibold text-text-primary">Выполненные подходы</span>
         <div
           v-for="s in completedSets"
@@ -203,67 +331,102 @@ function formatRest(sec: number) {
           class="flex h-11 items-center gap-3 rounded-lg bg-bg-card px-4"
         >
           <span class="text-sm font-semibold text-text-secondary">{{ s.set_order }}</span>
-          <span class="flex-1 text-sm text-text-primary">{{ s.weight }} кг × {{ s.reps }}</span>
+          <span
+            v-if="s.is_warmup"
+            class="rounded bg-warning/20 px-1.5 py-0.5 text-[11px] font-medium text-warning"
+          >
+            Разм.
+          </span>
+          <span class="flex-1 text-sm text-text-primary">
+            <template v-if="isBodyweight">× {{ s.reps }}</template>
+            <template v-else>{{ s.weight }} кг × {{ s.reps }}</template>
+          </span>
           <CircleCheck :size="20" class="text-accent" />
         </div>
       </div>
 
       <!-- Current set input -->
       <div class="flex flex-col gap-4 rounded-xl bg-bg-card p-4">
-        <span class="text-sm font-semibold text-text-primary">Подход {{ currentSetNumber }}</span>
+        <span class="text-sm font-semibold text-text-primary">{{ inputLabel }}</span>
         <div class="flex gap-3">
           <!-- Weight stepper -->
-          <div class="flex flex-1 flex-col gap-1.5">
+          <div v-if="!isBodyweight" class="flex flex-1 flex-col gap-1.5">
             <span class="text-xs text-text-secondary">Вес (кг)</span>
-            <div class="flex items-center gap-2">
+            <div class="flex h-12 items-center rounded-lg bg-bg-input">
               <button
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-input text-text-secondary hover:bg-bg-hover"
+                type="button"
+                class="flex h-full w-12 shrink-0 items-center justify-center text-xl font-semibold text-text-secondary hover:text-text-primary"
                 @click="adjustWeight(-5)"
               >
-                <Minus :size="16" />
+                −
               </button>
               <input
                 v-model.number="weight"
                 type="number"
-                class="h-10 w-full rounded-lg border border-border bg-bg-input px-3 text-center text-lg font-bold text-text-primary outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="h-full w-full min-w-0 bg-transparent text-center text-xl font-bold text-text-primary outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <button
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-input text-text-secondary hover:bg-bg-hover"
+                type="button"
+                class="flex h-full w-12 shrink-0 items-center justify-center text-xl font-semibold text-accent hover:opacity-80"
                 @click="adjustWeight(5)"
               >
-                <Plus :size="16" />
+                +
               </button>
             </div>
           </div>
           <!-- Reps stepper -->
           <div class="flex flex-1 flex-col gap-1.5">
             <span class="text-xs text-text-secondary">Повторения</span>
-            <div class="flex items-center gap-2">
+            <div class="flex h-12 items-center rounded-lg bg-bg-input">
               <button
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-input text-text-secondary hover:bg-bg-hover"
+                type="button"
+                class="flex h-full w-12 shrink-0 items-center justify-center text-xl font-semibold text-text-secondary hover:text-text-primary"
                 @click="adjustReps(-1)"
               >
-                <Minus :size="16" />
+                −
               </button>
               <input
                 v-model.number="reps"
                 type="number"
-                class="h-10 w-full rounded-lg border border-border bg-bg-input px-3 text-center text-lg font-bold text-text-primary outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="h-full w-full min-w-0 bg-transparent text-center text-xl font-bold text-text-primary outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <button
-                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-input text-text-secondary hover:bg-bg-hover"
+                type="button"
+                class="flex h-full w-12 shrink-0 items-center justify-center text-xl font-semibold text-accent hover:opacity-80"
                 @click="adjustReps(1)"
               >
-                <Plus :size="16" />
+                +
               </button>
             </div>
           </div>
         </div>
+        <!-- Warmup toggle -->
+        <button
+          type="button"
+          class="flex items-center gap-2.5"
+          @click="isWarmup = !isWarmup"
+        >
+          <span
+            class="flex h-6 w-11 items-center rounded-full p-0.5 transition-colors"
+            :class="isWarmup ? 'bg-accent' : 'bg-bg-input'"
+          >
+            <span
+              class="h-5 w-5 rounded-full bg-white transition-transform"
+              :class="isWarmup ? 'translate-x-5' : 'translate-x-0'"
+            />
+          </span>
+          <span class="text-[13px] text-text-secondary">Разминочный подход</span>
+        </button>
       </div>
 
       <!-- Record button -->
-      <AppButton class="w-full" :loading="logging" @click="logSet">
-        Записать подход
+      <AppButton
+        :variant="allSetsComplete ? 'secondary' : 'primary'"
+        class="w-full"
+        :loading="logging"
+        @click="logSet"
+      >
+        {{ allSetsComplete ? 'Дополнительный подход' : 'Записать подход' }}
       </AppButton>
 
       <!-- Navigation: plan mode -->
@@ -278,6 +441,13 @@ function formatRest(sec: number) {
       <!-- Navigation: free mode -->
       <template v-if="store.mode === 'free'">
         <button
+          v-if="!isLastExercise"
+          class="flex h-10 w-full items-center justify-center rounded-lg border border-border text-sm font-medium text-text-primary hover:bg-bg-hover"
+          @click="store.nextExercise()"
+        >
+          Следующее упражнение →
+        </button>
+        <button
           class="flex h-10 w-full items-center justify-center gap-1 rounded-lg border border-border text-sm font-medium text-text-primary hover:bg-bg-hover"
           @click="showAddExercise = true"
         >
@@ -289,17 +459,22 @@ function formatRest(sec: number) {
       </template>
     </div>
 
-    <!-- Rest panel -->
-    <div v-if="resting" class="flex flex-col items-center gap-3 border-t border-border bg-bg-card px-4 pb-6 pt-4">
-      <span class="text-[13px] font-medium text-text-secondary">Отдых</span>
-      <span class="text-4xl font-bold text-accent">{{ formatRest(restTime) }}</span>
-      <button
-        class="flex h-10 items-center justify-center px-5 text-sm font-medium text-text-secondary hover:text-text-primary"
-        @click="skipRest"
-      >
-        Пропустить
-      </button>
-    </div>
+    <!-- Rest overlay: blocks the UI while resting; panel pinned to bottom -->
+    <Teleport to="body">
+      <div v-if="resting" class="fixed inset-0 z-50 flex touch-none flex-col overscroll-contain">
+        <div class="flex-1 bg-black/50 backdrop-blur-sm" />
+        <div class="flex flex-col items-center gap-3 border-t border-border bg-bg-card px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4">
+          <span class="text-[13px] font-medium text-text-secondary">Отдых</span>
+          <span class="text-4xl font-bold tabular-nums text-accent">{{ formatRest(restTime) }}</span>
+          <button
+            class="flex h-10 items-center justify-center px-5 text-sm font-medium text-text-secondary hover:text-text-primary"
+            @click="skipRest"
+          >
+            Пропустить
+          </button>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Dialogs -->
     <AppModal v-model="showCloseDialog" title="Завершить тренировку?">

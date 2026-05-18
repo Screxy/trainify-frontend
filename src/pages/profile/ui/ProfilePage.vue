@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { User, LogOut } from 'lucide-vue-next'
+import { onMounted, ref, watch } from 'vue'
+import { LogOut, User } from 'lucide-vue-next'
 import { AppInput, AppButton } from '@/shared/ui'
 import { useAuthStore } from '@/features/auth'
 import { useProfileStore } from '@/features/profile'
@@ -10,14 +10,29 @@ const authStore = useAuthStore()
 const profileStore = useProfileStore()
 const toast = useToast()
 
-const name = ref(authStore.user?.name ?? '')
-const email = ref(authStore.user?.email ?? '')
+const name = ref('')
+const email = ref('')
 
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const savingProfile = ref(false)
 const savingPassword = ref(false)
+
+onMounted(async () => {
+  await profileStore.fetchProfile()
+})
+
+watch(
+  () => profileStore.profile,
+  (p) => {
+    if (p) {
+      name.value = p.name ?? ''
+      email.value = p.email ?? ''
+    }
+  },
+  { immediate: true },
+)
 
 async function saveProfile() {
   savingProfile.value = true
@@ -56,45 +71,72 @@ async function changePassword() {
     savingPassword.value = false
   }
 }
+
+function handleLogout() {
+  authStore.logout()
+}
 </script>
 
 <template>
   <div class="flex justify-center p-4 md:p-8">
-    <div class="flex w-full max-w-[560px] flex-col gap-6">
-      <h1 class="text-xl font-bold text-text-primary md:text-2xl">Профиль</h1>
-
+    <div class="flex w-full max-w-[560px] flex-col gap-6 md:rounded-lg md:bg-bg-card md:p-8">
       <!-- Avatar -->
       <div class="flex justify-center">
-        <div class="flex h-24 w-24 items-center justify-center rounded-full border-2 border-accent bg-bg-card">
-          <User :size="40" class="text-text-secondary" />
+        <div class="flex h-20 w-20 items-center justify-center rounded-full border-2 border-accent bg-bg-input md:h-24 md:w-24">
+          <User :size="36" class="text-text-secondary" />
         </div>
       </div>
 
+      <h1 class="text-center text-2xl font-bold text-text-primary">Профиль</h1>
+
       <!-- Profile form -->
-      <div class="rounded-lg border border-border bg-bg-card p-6">
-        <form class="flex flex-col gap-4" @submit.prevent="saveProfile">
-          <AppInput v-model="name" label="Имя" placeholder="Ваше имя" />
-          <AppInput v-model="email" label="Email" type="email" placeholder="email" disabled />
-          <AppButton type="submit" class="w-full" :loading="savingProfile">Сохранить</AppButton>
-        </form>
-      </div>
+      <form class="flex flex-col gap-4" @submit.prevent="saveProfile">
+        <AppInput v-model="name" label="Имя" placeholder="Ваше имя" />
+        <AppInput v-model="email" label="Email" type="email" placeholder="email@example.com" disabled />
+        <AppButton type="submit" size="m" class="w-full" :loading="savingProfile">
+          Сохранить изменения
+        </AppButton>
+      </form>
+
+      <div class="h-px bg-border" />
 
       <!-- Change password -->
-      <div class="rounded-lg border border-border bg-bg-card p-6">
-        <h2 class="mb-4 text-lg font-semibold text-text-primary">Сменить пароль</h2>
-        <form class="flex flex-col gap-4" @submit.prevent="changePassword">
-          <AppInput v-model="currentPassword" label="Текущий пароль" type="password" placeholder="••••••••" />
-          <AppInput v-model="newPassword" label="Новый пароль" type="password" placeholder="••••••••" />
-          <AppInput v-model="confirmPassword" label="Подтверждение" type="password" placeholder="••••••••" />
-          <AppButton type="submit" class="w-full" :loading="savingPassword">Сменить пароль</AppButton>
-        </form>
-      </div>
+      <h2 class="text-lg font-semibold text-text-primary">Сменить пароль</h2>
+      <form class="flex flex-col gap-4" @submit.prevent="changePassword">
+        <AppInput
+          v-model="currentPassword"
+          label="Старый пароль"
+          type="password"
+          placeholder="••••••••"
+        />
+        <AppInput
+          v-model="newPassword"
+          label="Новый пароль"
+          type="password"
+          placeholder="••••••••"
+        />
+        <AppInput
+          v-model="confirmPassword"
+          label="Подтвердите пароль"
+          type="password"
+          placeholder="••••••••"
+        />
+        <AppButton type="submit" variant="secondary" size="m" class="w-full" :loading="savingPassword">
+          Сменить пароль
+        </AppButton>
+      </form>
+
+      <div class="h-px bg-border" />
 
       <!-- Logout -->
-      <AppButton variant="secondary" class="w-full border-error/50 text-error hover:bg-error/10" @click="authStore.logout()">
-        <LogOut :size="16" />
-        Выйти из аккаунта
-      </AppButton>
+      <button
+        type="button"
+        class="flex h-11 items-center justify-center gap-2 rounded-lg border border-error bg-error/10 text-sm font-semibold text-error transition-colors hover:bg-error/20"
+        @click="handleLogout"
+      >
+        <LogOut :size="18" />
+        Выйти
+      </button>
     </div>
   </div>
 </template>

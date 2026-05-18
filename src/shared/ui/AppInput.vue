@@ -9,6 +9,7 @@ interface Props {
   placeholder?: string
   error?: string
   hint?: string
+  disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -16,6 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   error: '',
   hint: '',
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -39,24 +41,26 @@ function togglePassword() {
       {{ label }}
     </label>
     <div
-      class="flex h-10 items-center gap-2 rounded-lg border px-3"
+      class="flex h-10 items-center gap-2 rounded-lg border px-3 transition-opacity"
       :class="[
-        error
-          ? 'border-[#EF4444] bg-[#252836]'
-          : 'border-[#2D3748] bg-[#252836]',
+        error ? 'border-[#EF4444]' : 'border-[#2D3748]',
+        'bg-[#252836]',
+        disabled && 'cursor-not-allowed opacity-60',
       ]"
     >
       <input
         :type="inputType"
         :placeholder="placeholder"
         :value="modelValue"
-        class="w-full bg-transparent text-sm text-[#F1F5F9] placeholder-[#94A3B8] outline-none"
+        :disabled="disabled"
+        class="w-full bg-transparent text-sm text-[#F1F5F9] placeholder-[#94A3B8] outline-none disabled:cursor-not-allowed"
         @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
       <button
         v-if="isPassword"
         type="button"
-        class="flex-shrink-0 text-[#94A3B8] hover:text-[#F1F5F9] transition-colors"
+        :disabled="disabled"
+        class="flex-shrink-0 text-[#94A3B8] hover:text-[#F1F5F9] transition-colors disabled:hover:text-[#94A3B8]"
         @click="togglePassword"
       >
         <EyeOff v-if="showPassword" :size="18" />

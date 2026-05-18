@@ -8,6 +8,7 @@ export interface LoginPayload {
 export interface RegisterPayload {
   email: string
   password: string
+  name?: string
 }
 
 export interface AuthTokens {
@@ -27,7 +28,7 @@ export const authApi = {
   forgotPassword(email: string) {
     return api.post('/users/forgot-password', { email })
   },
-  resetPassword(token: string, password: string) {
-    return api.post('/users/reset-password', { token, password })
+  resetPassword(token: string, newPassword: string) {
+    return api.post('/users/reset-password', { token, new_password: newPassword })
   },
 }

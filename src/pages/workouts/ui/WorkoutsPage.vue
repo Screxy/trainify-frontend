@@ -32,12 +32,14 @@ function startNew() {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-bold text-text-primary md:text-[32px]">Тренировки</h1>
-      <AppButton size="m" class="hidden md:inline-flex" @click="startNew">
-        <Plus :size="16" />
-        Новая тренировка
-      </AppButton>
-      <button class="flex h-9 w-9 items-center justify-center rounded-full bg-accent text-bg md:hidden" @click="startNew">
-        <Plus :size="20" />
+      <div class="hidden md:block">
+        <AppButton size="m" @click="startNew">
+          <Plus :size="16" />
+          Новая тренировка
+        </AppButton>
+      </div>
+      <button class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-bg md:hidden" @click="startNew">
+        <Plus :size="18" />
       </button>
     </div>
 

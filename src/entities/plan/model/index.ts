@@ -5,6 +5,7 @@ import type { WorkoutPlan, WorkoutPlanDetail, CreatePlanRequest, UpdatePlanReque
 
 export const usePlanStore = defineStore('plan', () => {
   const plans = ref<WorkoutPlan[]>([])
+  const details = ref<Record<number, WorkoutPlanDetail>>({})
   const currentPlan = ref<WorkoutPlanDetail | null>(null)
   const loading = ref(false)
 
@@ -13,6 +14,18 @@ export const usePlanStore = defineStore('plan', () => {
     try {
       const { data } = await planApi.list()
       plans.value = data
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchPlansWithDetails() {
+    loading.value = true
+    try {
+      const { data } = await planApi.list()
+      plans.value = data
+      const results = await Promise.all(data.map((p) => planApi.get(p.id)))
+      details.value = Object.fromEntries(results.map((r) => [r.data.id, r.data]))
     } finally {
       loading.value = false
     }
@@ -45,7 +58,19 @@ export const usePlanStore = defineStore('plan', () => {
   async function deletePlan(id: number) {
     await planApi.delete(id)
     plans.value = plans.value.filter((p) => p.id !== id)
+    delete details.value[id]
   }
 
-  return { plans, currentPlan, loading, fetchPlans, fetchPlan, createPlan, updatePlan, deletePlan }
+  return {
+    plans,
+    details,
+    currentPlan,
+    loading,
+    fetchPlans,
+    fetchPlansWithDetails,
+    fetchPlan,
+    createPlan,
+    updatePlan,
+    deletePlan,
+  }
 })

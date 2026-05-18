@@ -19,7 +19,7 @@ const authStore = useAuthStore()
 </script>
 
 <template>
-  <aside class="hidden md:flex h-screen w-60 flex-col border-r border-border bg-bg-card px-3 py-6">
+  <aside class="sticky top-0 hidden h-screen w-60 flex-col border-r border-border bg-bg-card px-3 py-6 md:flex">
     <!-- Logo -->
     <div class="mb-6 flex items-center gap-2.5 px-4">
       <Dumbbell :size="24" class="text-accent" />

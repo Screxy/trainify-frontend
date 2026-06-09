@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Trash2, Clock, Dumbbell, Weight, Flame } from 'lucide-vue-next'
+import { ArrowLeft, Trash2 } from 'lucide-vue-next'
 import { useWorkoutStore } from '@/entities/workout'
 import { AppButton, AppBadge, ConfirmDialog } from '@/shared/ui'
 import { useToast } from '@/shared/lib/useToast'
@@ -45,11 +45,11 @@ const duration = computed(() => {
   return '—'
 })
 
-const totalVolume = computed(() => {
-  const sets = workout.value?.sets ?? []
-  const total = sets.reduce((sum, s) => sum + (s.weight ?? 0) * s.reps, 0)
-  return total > 0 ? `${total.toLocaleString('ru-RU')} кг` : '—'
-})
+const totalSets = computed(() => workout.value?.sets?.length ?? 0)
+
+const weightBefore = computed(() =>
+  workout.value?.weight_before ? `${workout.value.weight_before} кг` : '—',
+)
 
 function formatDate(date?: string) {
   if (!date) return ''
@@ -93,26 +93,22 @@ async function handleDelete() {
     </div>
 
     <!-- Metrics -->
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-      <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
-        <Clock :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ duration }}</span>
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div class="flex flex-col gap-1 rounded-lg bg-bg-card p-4">
         <span class="text-xs text-text-secondary">Длительность</span>
+        <span class="text-xl font-bold text-text-primary">{{ duration }}</span>
       </div>
-      <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
-        <Dumbbell :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ exerciseGroups.length }}</span>
+      <div class="flex flex-col gap-1 rounded-lg bg-bg-card p-4">
+        <span class="text-xs text-text-secondary">Вес до тренировки</span>
+        <span class="text-xl font-bold text-text-primary">{{ weightBefore }}</span>
+      </div>
+      <div class="flex flex-col gap-1 rounded-lg bg-bg-card p-4">
         <span class="text-xs text-text-secondary">Упражнений</span>
+        <span class="text-xl font-bold text-text-primary">{{ exerciseGroups.length }}</span>
       </div>
-      <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
-        <Flame :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ totalVolume }}</span>
-        <span class="text-xs text-text-secondary">Объём</span>
-      </div>
-      <div class="flex flex-col gap-1 rounded-lg border border-border bg-bg-card p-4">
-        <Weight :size="16" class="text-text-secondary" />
-        <span class="text-lg font-bold text-text-primary">{{ workout?.weight_before ? `${workout.weight_before} кг` : '—' }}</span>
-        <span class="text-xs text-text-secondary">Вес до</span>
+      <div class="flex flex-col gap-1 rounded-lg bg-bg-card p-4">
+        <span class="text-xs text-text-secondary">Подходов</span>
+        <span class="text-xl font-bold text-text-primary">{{ totalSets }}</span>
       </div>
     </div>
 

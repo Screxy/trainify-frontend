@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import { Sparkles, Loader2, Timer } from 'lucide-vue-next'
 import { useAiInsightsStore } from '@/features/analytics'
-import { AppButton, AppInput, AppSelect } from '@/shared/ui'
+import { AppButton, AppInput, AppSelect, AppModal } from '@/shared/ui'
 import type { AIGoal } from '@/shared/types'
 
 const store = useAiInsightsStore()
 
 const goal = ref<string>('general')
 const notes = ref('')
+const showModal = ref(false)
 
 const goalOptions: { value: string; label: string }[] = [
   { value: 'general', label: 'Общая форма' },
@@ -67,6 +68,7 @@ const generatedLabel = computed(() => {
 })
 
 async function submit() {
+  showModal.value = false
   await store.createInsight(goal.value as AIGoal, notes.value)
 }
 </script>
@@ -119,7 +121,7 @@ async function submit() {
           Сгенерировано {{ generatedLabel }}<template v-if="!store.canCreate && nextAvailableRelative"> · следующая через {{ nextAvailableRelative }}</template>
         </span>
       </div>
-      <AppButton v-if="store.canCreate" variant="primary" @click="submit">
+      <AppButton v-if="store.canCreate" variant="primary" @click="showModal = true">
         Новый запрос
       </AppButton>
       <AppButton v-else variant="secondary" disabled class="opacity-50">
@@ -150,5 +152,28 @@ async function submit() {
         Доступно {{ nextAvailableLabel }}
       </AppButton>
     </template>
+
+    <!-- New request modal -->
+    <AppModal v-model="showModal" title="Новый запрос">
+      <div class="flex flex-col gap-4">
+        <p class="text-sm leading-relaxed text-text-secondary">
+          Выберите цель и получите персональный совет на основе ваших тренировок
+          за последние 30 дней.
+        </p>
+        <AppSelect v-model="goal" label="Цель" :options="goalOptions" />
+        <AppInput
+          v-model="notes"
+          label="Заметки (опционально)"
+          placeholder="Например: хочу прогресс в жиме"
+        />
+        <AppButton
+          class="w-full"
+          :loading="store.status === 'submitting'"
+          @click="submit"
+        >
+          Получить рекомендацию
+        </AppButton>
+      </div>
+    </AppModal>
   </div>
 </template>

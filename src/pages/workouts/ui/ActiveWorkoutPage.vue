@@ -11,8 +11,9 @@ const router = useRouter()
 const store = useActiveWorkoutStore()
 const toast = useToast()
 
-// Guard: redirect if no active workout
-onMounted(() => {
+// Guard: redirect if no active workout (waits for IndexedDB restore on first paint).
+onMounted(async () => {
+  await store.ensureRestored()
   if (!store.isActive) {
     router.replace('/workouts')
   }

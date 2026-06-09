@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
+import { get as idbGet, set as idbSet, del as idbDel, createStore } from 'idb-keyval'
 import { workoutApi } from '../api'
 import { useExerciseStore } from '@/entities/exercise'
 import type { ExerciseType, WorkoutPlanDetail } from '@/shared/types'
@@ -34,22 +35,32 @@ interface PersistedState {
 
 const STORAGE_KEY = 'trainify_active_workout'
 
-function loadFromStorage(): PersistedState | null {
+// Dedicated IndexedDB store so DevTools shows a clear DB name.
+const idbStore = createStore('trainify-app', 'kv')
+
+async function loadFromStorage(): Promise<PersistedState | null> {
   try {
+    const fromIdb = await idbGet<PersistedState>(STORAGE_KEY, idbStore)
+    if (fromIdb) return fromIdb
+    // One-shot migration from legacy localStorage (early dev seeds).
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw) as PersistedState
+    await idbSet(STORAGE_KEY, parsed, idbStore).catch(() => undefined)
+    localStorage.removeItem(STORAGE_KEY)
+    return parsed
   } catch {
     return null
   }
 }
 
 function saveToStorage(state: PersistedState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  // Fire-and-forget; failures are non-critical (session will resume on next change).
+  void idbSet(STORAGE_KEY, state, idbStore).catch(() => undefined)
 }
 
 function clearStorage() {
-  localStorage.removeItem(STORAGE_KEY)
+  void idbDel(STORAGE_KEY, idbStore).catch(() => undefined)
 }
 
 export const useActiveWorkoutStore = defineStore('activeWorkout', () => {
@@ -61,16 +72,23 @@ export const useActiveWorkoutStore = defineStore('activeWorkout', () => {
   const isActive = ref(false)
   const weightBefore = ref<number | null>(null)
 
-  // Restore from localStorage on init
-  const saved = loadFromStorage()
-  if (saved && saved.sessionId) {
-    sessionId.value = saved.sessionId
-    mode.value = saved.mode
-    exercises.value = saved.exercises
-    currentExerciseIndex.value = saved.currentExerciseIndex
-    startedAt.value = saved.startedAt
-    weightBefore.value = saved.weightBefore ?? null
-    isActive.value = true
+  // Restore from IndexedDB on init (async — UI awaits via ensureRestored()).
+  const ready = ref(false)
+  const readyPromise = loadFromStorage().then((saved) => {
+    if (saved && saved.sessionId) {
+      sessionId.value = saved.sessionId
+      mode.value = saved.mode
+      exercises.value = saved.exercises
+      currentExerciseIndex.value = saved.currentExerciseIndex
+      startedAt.value = saved.startedAt
+      weightBefore.value = saved.weightBefore ?? null
+      isActive.value = true
+    }
+    ready.value = true
+  })
+
+  async function ensureRestored() {
+    if (!ready.value) await readyPromise
   }
 
   // Persist on changes
@@ -219,6 +237,8 @@ export const useActiveWorkoutStore = defineStore('activeWorkout', () => {
     currentExerciseIndex,
     startedAt,
     isActive,
+    ready,
+    ensureRestored,
     weightBefore,
     startFromPlan,
     startFreeMode,
